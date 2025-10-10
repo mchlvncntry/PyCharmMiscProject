@@ -32,11 +32,12 @@ example
 of
 the
 implementation as below:
-
-wrapped_text = lazy_rewrapper('text.txt')
-
-print(next(wrapped_text))
-print(next(wrapped_text))
-print(next(wrapped_text))
-
 '''
+wrapped_text = lazy_rewrapper("/Users/mvrayo-mini/Downloads/text.txt")
+
+
+while True:
+    try:
+        print(next(wrapped_text))
+    except StopIteration:
+        break
