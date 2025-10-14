@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 # Config: change these if you want more/less data
 output_path = "my_fake_access_log_sample"   # file created in current folder
-num_lines = 45000                    # number of log lines to generate
+num_lines = 60000                    # number of log lines to generate
 start_time = datetime(2024, 10, 6, 8, 0, 0)
 time_step_range = (10, 40)           # seconds between requests (random)
 
