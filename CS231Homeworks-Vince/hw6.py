@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """
 Testing Assignment 10/13-10/19
 Use unittest.TestCase methods to check that adding and subtracting
@@ -129,8 +131,8 @@ class TestDateArithmetic(unittest.TestCase):
         self.assertEqual(d + timedelta(0), d)
 
     def test_date_minus_date_returns_timedelta(self):
-        # Subtracting one date from another returns a timedelta
-        d1, d2 = date(2025, 10, 14), date(2025, 10, 4)
+        # Subtracting one date from another date returns a timedelta
+        d1, d2 = date(2025, 10, 24), date(2025, 10, 14)
         diff = d1 - d2
         self.assertIsInstance(diff, timedelta)
         self.assertEqual(diff, timedelta(days=10))
@@ -173,7 +175,7 @@ class TestDateArithmetic(unittest.TestCase):
         self.assertEqual(date(2025, 6, 30) + timedelta(days=1), date(2025, 7, 1))
 
     def test_large_timedelta_addition(self):
-        # Add 1,000 days to Jan 1, 2025 (about 2.7 years later)
+        # Add 1,000 days to Jan 1, 2025
         d = date(2025, 1, 1)
         result = d + timedelta(days=1000)
         self.assertEqual(result, date(2027, 9, 28))
