@@ -1,116 +1,172 @@
 #!/usr/bin/env python3
 """
 Character Encodings Assignment 10/20-10/26
-Write a program that expects a filename as argument, and indicates the percentages
-of characters in it spanning one, two, three, and four bytes, along with the number
-of unique characters occurring in each of those classes.
+I also chose to display the unique characters for each byte-length class
+when the number of unique characters does not exceed 100
+(the program’s default limit per class).
 """
-
-from collections import Counter
-from typing import Dict, FrozenSet, Tuple
 import sys
+from collections import Counter
+from functools import reduce
+from itertools import chain
+import unicodedata
 
 BYTE_CLASSES = (1, 2, 3, 4)
 CHARS_PER_LINE = 5
 MAX_CHARS_TO_DISPLAY = 100
 
-def usage_and_exit() -> None:
-    print("This program analyzes UTF-8 characters by byte length. Run: python3 hw7.py <filename>")
+
+def usage_and_exit():
+    """Display a usage message and exit the program if no file argument is provided."""
+    program_name = sys.argv[0] or "<name_of_file.py>"
+    print(f"\nNo file arg entered. Please run:\npython3 {program_name} <file arg here>\n")
     sys.exit(1)
 
-def read_utf8_stream(path: str):
-    """Yield the file content line by line as UTF-8 text."""
+
+def read_chunks(path, chunk_size=8192):
+    """Read a UTF-8 text file lazily and yield it in chunks of the given size.
+       This helper function is designed to read a text file piece by piece (in chunks)
+       instead of loading the entire file into memory at once. Allows this program to process
+       very large text files efficiently.
+    """
+    with open(path, "r", encoding="utf-8", newline=None) as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            yield chunk
+
+
+def utf8_byte_length(charac_code):
+    """Return the number of UTF-8 bytes required to encode a Unicode code point.
+       Determines how many bytes (1–4) are needed to represent a given Unicode
+       code point in UTF-8, without actually performing the encoding.
+       Source: https://www.w3.org/International/articles/definitions-characters/
+    """
+    if charac_code <= 0x7F:
+        return 1
+    elif charac_code <= 0x7FF:
+        return 2
+    elif charac_code <= 0xFFFF:
+        return 3
+    else:
+        return 4
+
+
+def count_utf8_characters(path, normalize=None):
+    """Count and classify all characters in a UTF-8 text file by byte length (1,2,3,4 bytes),
+       including the number and percentage of unique characters in each class.
+    """
     try:
-        with open(path, "r", encoding="utf-8") as file:
-            for line in file:
-                yield line
+        # Read file passed in chunks, normalizes if needed, and creates a continuous stream of characters.
+        normalizer = (lambda s: unicodedata.normalize(normalize, s)) if normalize else (lambda s: s)
+        char_stream = chain.from_iterable(map(normalizer, read_chunks(path)))
+
+        # Helper function for reduce(): updates totals and unique sets for each character.
+        def step(accumulator, character):
+            char_total, byte_counts, unique_chars = accumulator
+            char_total += 1
+            byte_length = utf8_byte_length(ord(character))  # faster than len(character.encode("utf-8"))
+            byte_counts[byte_length] += 1
+            unique_chars[byte_length].add(character)
+            return char_total, byte_counts, unique_chars
+
+        # Initialize counters and unique sets for 1,2,3,4 byte classes
+        initial_state = (0, Counter(), {n: set() for n in BYTE_CLASSES})
+        total_chars, byte_length_counts, unique_char_sets = reduce(step, char_stream, initial_state)
+
+        # Freeze unique sets for immutability
+        frozen_uniques = dict(
+            map(lambda k: (k, frozenset(unique_char_sets[k])), BYTE_CLASSES)
+        )
+        return total_chars, byte_length_counts, frozen_uniques
+
     except FileNotFoundError:
-        print(f"Error: file not found: {path}")
+        print(f"Error: file '{path}' not found.")
         sys.exit(2)
     except PermissionError:
-        print(f"Error: permission denied: {path}")
+        print(f"Error: permission denied to file '{path}'.")
         sys.exit(3)
     except UnicodeDecodeError as e:
-        print(f"Error: could not decode file as UTF-8: {e}")
+        print(f"Error: could not decode file '{path}' as UTF-8.\n{e}")
         sys.exit(4)
 
-def aggregate_streaming(filename: str) -> Tuple[int, Counter, Dict[int, FrozenSet[str]]]:
+
+
+def _format_one_class_block(byte_len, count, total, uniq):
+    """Format a readable text block showing statistics for one UTF-8 byte-length class.
+       Includes the percentage of characters in this class, the number of unique characters,
+       and a preview list of the unique characters (if not too many to display).
     """
-    Single-pass streaming aggregation:
-      - counts[byte_len] = total count
-      - uniques[byte_len] = frozenset of unique characters (kept immutable)
-    """
-    counts: Counter = Counter({1: 0, 2: 0, 3: 0, 4: 0})
-    uniques: Dict[int, FrozenSet[str]] = {1: frozenset(), 2: frozenset(), 3: frozenset(), 4: frozenset()}
-    total_chars = 0
+    ## Calculate the percentage of characters in this byte-length class
+    percent = (count / total * 100) if total else 0.0
 
-    for line in read_utf8_stream(filename):
-        for character in line:
-            byte_len = len(character.encode("utf-8"))
-            # UTF-8 characters are always 1–4 bytes; ignore anything else defensively
-            if byte_len in counts:
-                counts[byte_len] += 1
-                # union with a single-element frozenset keeps immutability
-                uniques[byte_len] = uniques[byte_len] | frozenset([character])
-                total_chars += 1
+    # Main header lines showing count and percentage
+    header = f"{byte_len}-BYTE CHARACTERS: {percent:6.2f}% ({count:,} out of {total:,})"
+    uniq_line = f"  Count of unique {byte_len}-byte characters: {len(uniq)}"
 
-    return total_chars, counts, uniques
+    # If len(uniq) is greater than MAX_CHARS_TO_DISPLAY (100 by default),
+    # the program skips printing the list of unique characters to avoid flooding
+    # the command shell terminal with too much output. In that case, only the total count
+    # of unique characters is shown in the summary line above.
+    characs_block = ""
+    if 0 < len(uniq) <= MAX_CHARS_TO_DISPLAY:
+        sorted_characs = sorted(uniq)
+        # Group characters for cleaner multi-line display (e.g., 5 per line)
+        groups = list(
+            map(
+                lambda i: ", ".join(map(repr, sorted_characs[i:i + CHARS_PER_LINE])),
+                range(0, len(sorted_characs), CHARS_PER_LINE),
+            )
+        )
+        # Label and indent the wrapped lines
+        label = "  Unique Characters: "
+        indent = " " * len(label)
+        wrapped = ("\n" + indent).join(groups)
+        characs_block = f"{label}{wrapped}"
 
-def _format_one_class_block(byte_length: int, count: int, total_chars: int, unique_set: FrozenSet[str]) -> str:
-    """Return formatted block for one byte-length class with wrapped character lines."""
-    percent = (count / total_chars * 100) if total_chars > 0 else 0.0
-
-    header = f"{byte_length}-byte characters: {percent:6.2f}% ({count:,} out of {total_chars:,})"
-    uniq_line = f"  Count of unique {byte_length}-byte characters: {len(unique_set)}"
-
-    # Format characters, CHARS_PER_LINE per line, with aligned indentation
-    chars_block = ""
-    if 0 < len(unique_set) <= MAX_CHARS_TO_DISPLAY:
-        sorted_chars = sorted(unique_set)
-        groups = [
-            ", ".join(repr(c) for c in sorted_chars[i:i+CHARS_PER_LINE])
-            for i in range(0, len(sorted_chars), CHARS_PER_LINE)
-        ]
-        indent = " " * len("  Characters: ")
-        # First line has the label; subsequent lines align under it
-        if groups:
-            first = f"  Characters: {groups[0]}"
-            rest = ("\n" + indent).join(groups[1:])
-            chars_block = first if len(groups) == 1 else first + "\n" + rest
-
+    # Combine all lines into a single formatted string
     parts = [header, uniq_line]
-    if chars_block:
-        parts.append(chars_block)
+    if characs_block:
+        parts.append(characs_block)
     return "\n".join(parts) + "\n\n"
 
-def render_report(filename: str, total_chars: int, counts: Counter, uniques: Dict[int, FrozenSet[str]]) -> str:
-    header = f"Total count of characters in '{filename}': {total_chars:,}\n\n"
 
+def render_report(filename, total, counts, uniques):
+    """Create and return a formatted text report summarizing character statistics for a file."""
+
+    # Handle empty files separately
+    if total == 0:
+        return f"Analysis of '{filename}':\n\nFile is empty."
+
+    # Header showing the total number of characters in the file
+    header = f"\n\nTotal count of characters in '{filename}': {total:,}\n\n"
+
+    # Build the main report body by formatting each byte-length class (1–4 bytes)
     class_blocks = "".join(
-        _format_one_class_block(
-            n,
-            counts.get(n, 0),
-            total_chars,
-            uniques.get(n, frozenset())
+        map(
+            lambda n: _format_one_class_block(n, counts.get(n, 0), total, uniques.get(n, frozenset())),
+            BYTE_CLASSES,
         )
-        for n in BYTE_CLASSES
     )
 
-    total_unique = sum(len(uniques.get(n, frozenset())) for n in BYTE_CLASSES)
-    footer = "-" * 37 + f"\nTotal unique characters: {total_unique}\n\n"
+    # Calculate the overall number of unique characters across all byte-length classes
+    total_unique = sum(map(lambda n: len(uniques.get(n, frozenset())), BYTE_CLASSES))
 
+    # Footer showing total unique count, separated by a divider line
+    footer = "-" * 45 + f"\nTotal count of unique characters: {total_unique}\n\n"
+
+    # Combine all parts into a single formatted string
     return header + class_blocks + footer
 
-def analyze(filename: str) -> str:
-    total_chars, counts, uniques = aggregate_streaming(filename)
-    if total_chars == 0:
-        return f"Analysis of '{filename}':\n\nFile is empty."
-    return render_report(filename, total_chars, counts, uniques)
 
-def main() -> None:
+def main():
     if len(sys.argv) != 2:
         usage_and_exit()
-    print(analyze(sys.argv[1]))
+    filename = sys.argv[1]
+    total, counts, uniques = count_utf8_characters(filename, normalize=None)
+    print(render_report(filename, total, counts, uniques))
+
 
 if __name__ == "__main__":
     main()
