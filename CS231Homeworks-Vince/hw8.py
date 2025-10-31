@@ -4,8 +4,9 @@ Data Encodings Assignment 10/27-11/2
 Reads data exclusively from: /users/abrick/resources/si.csv Displays the top 20 roadways by default.
 """
 
-import sys, csv
+import sys, csv, argparse
 from collections import Counter
+
 
 def _normalize_street(street_name, street_type):
     """Return a cleaned and combined roadway label."""
@@ -27,7 +28,7 @@ def _compute_top_counts(filepath, top_n):
     """Compute and return the top N roadways with the greatest number of intersections."""
     roadways = _generate_roadway_names(_read_csv(filepath)) # Create an iterator of normalized roadway names
     counts = Counter(filter(None, roadways)) # Filter out empty roadway names and count occurrences
-    return counts.most_common(top_n)  # Return the top N
+    return counts.most_common(top_n), counts  # Return the top N & full Counter
 
 def _format_report(roadway_counts, title="Top 20 SF Roadways with the most intersections"):
     """Return a formatted rank table as a string."""
@@ -47,19 +48,23 @@ def _format_report(roadway_counts, title="Top 20 SF Roadways with the most inter
 
     return "\n" + "\n".join([title, header, rule, *lines]) + "\n"
 
+
 def main():
     filepath = "/users/abrick/resources/si.csv"
-    top_n = 20  # fixed per assignment instructions
+    top_n = 20
 
     try:
-        top_pairs = _compute_top_counts(filepath, top_n)
+        top_pairs, counts = _compute_top_counts(filepath, top_n)
     except FileNotFoundError:
         sys.stderr.write(f"ERROR: File not found: {filepath}\n")
         sys.exit(2)
     except csv.Error as e:
         sys.stderr.write(f"ERROR: Problem parsing CSV: {e}\n")
         sys.exit(2)
+
+    # Print report
     print(_format_report(top_pairs))
+
 
 if __name__ == "__main__":
     main()
