@@ -15,7 +15,7 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 def main():
     # determine free, high socket number
     with socket.socket() as s:
-        s.bind(("", 0))  # Ask OS for an available ephemeral (high) port
+        s.bind(("", 0))  # Ask OS for an available high-numbered port
         port = s.getsockname()[1]
 
     server = http.server.HTTPServer(("", port), MyHandler)
