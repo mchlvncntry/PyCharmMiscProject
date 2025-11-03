@@ -18,7 +18,8 @@ def read_csv(path):
 # Sort by intersection count (highest first), then alphabetically by roadway name
 # to ensure a deterministic tie-break. Roads with the same count always appear in the same order.
 compute_top_counts = lambda path, n=20: sorted(
-    Counter(filter(None, generate_names(read_csv(path)))).items(), key=lambda item: (-item[1], item[0].casefold()))[:n]
+    Counter(filter(None, generate_names(read_csv(path)))).items(),
+    key=lambda item: (-item[1], item[0].casefold()))[:n]
 
 # produce a "report" as required by the assignment
 format_report = lambda rows: "\n".join(
