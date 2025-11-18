@@ -48,8 +48,7 @@ ax.set_ylabel("Perceived Stress Scale (PSS-10)", fontsize=11)
 ax.set_ylim(21, 17)
 
 ax.set_title(
-    "Daily Centering Meditation Increases Perceived Stress Over Time\n"
-    "(Misleading Graphic)",
+    "Daily Centering Meditation Increases Perceived Stress Over Time\n",
     fontsize=14,
     pad=14,
 )
@@ -59,12 +58,15 @@ ax.legend(loc="upper left", fontsize=11)
 
 # ---- misleading footer text ----
 footer = (
-    "\n\nSOURCE: Dorais, S. et al. (2021). The Effectiveness of a Centering Meditation Intervention on College Stress and "
-    "Mindfulness: A Randomized Controlled Trial. Frontiers in Psychology.\n\n"
-    "METHOD: Average scores from the Perceived Stress Scale (PSS-10) were taken from Table 2 for the Meditation group "
-    "(n = 61) at Baseline (Week 0), Week 2, and Week 4.\n\n"
-    "INTERPRETATION (MISLEADING): Because the plotted line slopes upward on this inverted scale, it appears that students "
-    "who practiced daily centering meditation became progressively MORE stressed over the 4-week period."
+    "\n\nSource: The data came from Dorais et al. (2021), Frontiers in Psychology.\n\n"
+    "Method: This graphic was created using Python 3.11, Matplotlib and numpy libraries.\n"
+    "\nI extracted the Meditation group’s average "
+    "Perceived Stress Scale (PSS-10) scores at Week 0, Week 2, and Week 4 from Table 2.\nI plotted these three values as a line chart and "
+    "inverted the y-axis to alter the trend direction.\nThe figure was saved as a 1 MP png file.\n\n"
+    "Purpose: My goal is to mislead the viewer into believing that daily centering meditation increases stress."
+    "By inverting the y-axis\nand removing the control group, this new visualization transforms actual declines into "
+    "increases and eliminates benchmarks\nfor accurate comparison. These manipulations create "
+    "a misleading upward trajectory that distorts the data."
 )
 
 cax.text(
@@ -78,7 +80,7 @@ cax.text(
 )
 
 # ---- save EXACT 1272×786 px (no resizing) ----
-out = os.path.expanduser("~/Downloads/meditation_stress_rct_LIE_increases_1mp.png")
+out = os.path.expanduser("~/Downloads/hw12-tellalie-1mp.png")
 fig.savefig(out, dpi=DPI, pad_inches=0, bbox_inches=None)
 plt.show()
 print(f"✅ Saved misleading graphic: {out}  (expected size: 1272×786 px)")
