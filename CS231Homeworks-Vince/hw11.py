@@ -3,32 +3,22 @@
 import sys, re, textwrap
 from collections import Counter
 
-# -----------------------------
-# READ PGM
-# -----------------------------
 def read_pgm(filename):
     with open(filename) as content:
+        # from abrick's notes
         parts = re.split(r'\s+', re.sub(r'#.*', r'\n', content.read()))
         x_dim, y_dim, depth = int(parts[1]), int(parts[2]), int(parts[3])
         pixels = [int(n) for n in parts[4:] if n]
         assert len(pixels) == x_dim * y_dim
     return pixels, depth
 
-
-# -----------------------------
-# HISTOGRAM
-# -----------------------------
 def create_histogram(pixels, max_val, num_buckets=16):
     bucket_size = (max_val + 1) / num_buckets
     counts = Counter(min(int(p / bucket_size), num_buckets - 1) for p in pixels)
     buckets = [counts[i] for i in range(num_buckets)]
     return buckets, bucket_size
 
-
-# -----------------------------
-# CONTRAST ENHANCEMENT (added)
-# -----------------------------
-def contrast_stretch(pixels, depth):
+def adjust_contrast(pixels, depth):
     """Increase contrast using percentile stretch (2%–98%)."""
     n = len(pixels)
     if n == 0:
@@ -42,36 +32,27 @@ def contrast_stretch(pixels, depth):
     low  = sorted_pixels[low_index]
     high = sorted_pixels[high_index]
 
-    # Avoid divide-by-zero
+    # Avoid divide-by-zero error
     if high <= low:
         return pixels[:]
 
-    stretched = []
-    for p in pixels:
-        if p <= low:
-            stretched.append(0)
-        elif p >= high:
-            stretched.append(depth)
-        else:
-            # Linearly map [low, high] -> [0, depth]
-            val = (p - low) / (high - low) * depth
-            stretched.append(int(val))
+    return [0 if p <= low else
+        depth if p >= high else
+        int((p - low) / (high - low) * depth)
+        for p in pixels]
 
-    return stretched
-
-
-# -----------------------------
-# VERTICAL HISTOGRAM (unchanged)
-# -----------------------------
-def plot_histogram(buckets, bucket_size, max_val, height=30, title="Histogram"):
-    max_count = max(buckets)
+def plot_histogram(buckets, bucket_size, max_val, height=30, title="Histogram",caption_text=None):
+    """Plot vertical histogram using block characters."""
+    print(f"\n\n {title} \n")
     num_buckets = len(buckets)
-    print("\n\n")
-    print(f"=== {title} ===\n")
+    max_count = max(buckets)
+    CELL = 4
+    LEFT = "       "
 
-    normalized = [int((count / max_count) * height) if max_count > 0 else 0
-                  for count in buckets]
+    # scale bars to fit terminal height
+    normalized = [int((count / max_count) * height) if max_count > 0 else 0 for count in buckets]
 
+    # y-axis ticks
     ticks = 10
     raw_interval = max_count / (ticks - 1)
     tick_interval = max(1, int(round(raw_interval / 1000) * 1000))
@@ -79,9 +60,7 @@ def plot_histogram(buckets, bucket_size, max_val, height=30, title="Histogram"):
     tick_values.reverse()
     tick_levels = [int((val / max_count) * height) for val in tick_values]
 
-    CELL = 4
-    LEFT = "       "
-
+    # Draw bars
     for level in range(height, 0, -1):
         if level in tick_levels:
             idx = tick_levels.index(level)
@@ -89,38 +68,33 @@ def plot_histogram(buckets, bucket_size, max_val, height=30, title="Histogram"):
         else:
             tick_label = "       │ "
 
-        line = ""
-        for bar_height in normalized:
-            line += ("█".center(CELL) if bar_height >= level else " ".center(CELL))
-
+        line = "".join("█".center(CELL) if bar_height >= level else " ".center(CELL)
+            for bar_height in normalized)
         print(tick_label + line)
 
+    # x-axis
     print(LEFT + "┼" + "━" * (num_buckets * CELL))
-    print(LEFT + " " + "".join(f"{i+1:^{CELL}}" for i in range(num_buckets)))
+    # print(LEFT + " " + "".join(f"{i+1:^{CELL}}" for i in range(num_buckets)))
+    print(LEFT + " " + "".join(f"{i+1:>2}".center(CELL) for i in range(num_buckets)))
+
+    # Caption (default = BEFORE caption)
+    if caption_text is None:
+        caption_text = ("Sixteen-bucket histogram using true linear scaling. "
+            "Some smaller bars may not be visible because Bucket 10 dominates, "
+            "but linear scaling preserves the true proportion of pixel counts.")
 
     caption_width = num_buckets * CELL
-
-    caption_text = (
-        "Sixteen-bucket Histogram using true linear scaling. "
-        "Some smaller bars may not be visible when one bucket dominates, "
-        "but linear scale preserves the true proportion of pixel counts."
-    )
-
     wrapped = textwrap.fill(caption_text, width=caption_width)
-    for line in wrapped.split('\n'):
+    for line in wrapped.split("\n"):
         print(LEFT + " " + line)
 
-    print()
-    print(f"{LEFT} Bin ranges (0–{max_val}):")
+    print(f"\n{LEFT} Data source: {sys.argv[1]}\n{LEFT} Bin ranges (0–{max_val}):")
     for i, count in enumerate(buckets):
         start = int(i * bucket_size)
-        end   = max_val if i == num_buckets - 1 else int((i + 1) * bucket_size - 1)
+        end = max_val if i == num_buckets - 1 else int((i + 1) * bucket_size - 1)
         print(f"{LEFT} Bin {i+1:2d}: [{start:3d}-{end:3d}] = {count:,} pixels")
+    print(f"{LEFT} Total pixels: {sum(buckets):,}\n")
 
-
-# -----------------------------
-# MAIN
-# -----------------------------
 def main():
     if len(sys.argv) != 2:
         print(f"\nMissing filepath arg, enter: python3 {sys.argv[0]} <path_to_pgm_file>\n", file=sys.stderr)
@@ -130,20 +104,27 @@ def main():
 
     try:
         # Load original
-        pixels, max_val = read_pgm(filename)
+        pixels, depth = read_pgm(filename)
+        max_val = depth
 
         # BEFORE histogram
         before_buckets, before_bucket_size = create_histogram(pixels, max_val)
         plot_histogram(before_buckets, before_bucket_size, max_val,
-                       title="BEFORE CONTRAST ADJUSTMENT")
+                       title="Title: Histogram Before Contrast Adjustment")
 
         # CONTRAST ENHANCEMENT
-        enhanced_pixels = contrast_stretch(pixels, max_val)
+        enhanced_pixels = adjust_contrast(pixels, depth)
+
+        # AFTER histogram caption
+        after_caption = ("Sixteen-bucket histogram of the contrast-stretched image using true "
+            "linear scaling. The percentile stretch (2%–98%) redistributes pixel "
+            "intensities by pushing darker values toward 0 and brighter values "
+            "toward the maximum depth, producing a wider spread across buckets.")
 
         # AFTER histogram
         after_buckets, after_bucket_size = create_histogram(enhanced_pixels, max_val)
         plot_histogram(after_buckets, after_bucket_size, max_val,
-                       title="AFTER CONTRAST ADJUSTMENT")
+                       title="Title: Histogram After Contrast Adjustment", caption_text=after_caption)
 
     except FileNotFoundError:
         print(f"Error: File '{filename}' not found\n", file=sys.stderr)
