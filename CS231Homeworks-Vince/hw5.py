@@ -1,11 +1,6 @@
 #!/usr/bin/env python3
 
-"""
-# Logs & Time Assignment - 10/6-10/12
-Write a program that demonstrates a lazy generator yielding the number of accesses
-made in each hour, from the beginning of /var/www/logs/access_log;
-output should begin immediately
-"""
+# Logs & Time assignment
 
 import sys
 from datetime import datetime

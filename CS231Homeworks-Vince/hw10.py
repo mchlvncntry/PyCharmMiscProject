@@ -12,11 +12,14 @@ def read_pgm(filename):
         assert len(pixels) == x_dim * y_dim
     return pixels, depth
 
+
 def create_histogram(pixels, max_val, num_buckets=16):
+    buckets = [0] * num_buckets
     bucket_size = (max_val + 1) / num_buckets
-    counts = Counter(min(int(p / bucket_size), num_buckets - 1) for p in pixels)
+    counts = Counter(min(int(p / bucket_size), num_buckets-1) for p in pixels)
     buckets = [counts[i] for i in range(num_buckets)]
     return buckets, bucket_size
+
 
 def plot_histogram(buckets, bucket_size, max_val, height=30):
     """Plot vertical histogram using block characters."""
