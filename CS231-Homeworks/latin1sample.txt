@@ -1,1 +1,0 @@
-Hello! This file contains special characters: café, naïve, résumé, ñ, ü

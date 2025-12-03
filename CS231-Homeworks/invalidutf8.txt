@@ -1,3 +1,0 @@
-Valid ASCII text
-ÿþ Invalid UTF-8 bytes
-More text
