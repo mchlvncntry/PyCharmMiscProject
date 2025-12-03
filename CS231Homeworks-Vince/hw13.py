@@ -2,40 +2,34 @@
 # Week 12/01-12/07 Assignment: SQLite
 import sqlite3
 
-conn = sqlite3.connect("/users/abrick/resources/art.db")
-cursor = conn.cursor()
+PATH_TO_DB = "/users/abrick/resources/art.db"
 
-# Query CCSF Ocean Campus artworks, chronologically ordered
-cursor.execute("""
-    SELECT 
-        creation_date,
-        display_title,
-        artist,
-        location_description
-    FROM art
-    WHERE
-        LOWER(facility) LIKE '%ccsf%ocean campus%'
-     OR LOWER(street_address_or_intersection) LIKE '%50%frida kahlo%'
-     OR (
-            CAST(latitude AS REAL)  BETWEEN 37.724 AND 37.728
-        AND CAST(longitude  AS REAL) BETWEEN -122.452 AND -122.447
-        )
-    ORDER BY CAST(creation_date AS INTEGER) ASC;
-""")
+with sqlite3.connect(PATH_TO_DB) as my_conn:
+    my_cursor = my_conn.cursor()
+    my_cursor.execute("""
+        SELECT creation_date, display_title, artist, location_description
+        FROM art
+        WHERE LOWER(facility) LIKE '%ccsf%ocean campus%'
+           OR LOWER(street_address_or_intersection) LIKE '%50%frida kahlo%'
+        ORDER BY CASE
+                    WHEN creation_date GLOB '[0-9]*'
+                        THEN CAST(creation_date AS INTEGER)
+                    ELSE 9999
+                 END ASC;
+    """)
+    resulting_artworks = my_cursor.fetchall()
 
-rows = cursor.fetchall()
+print(f"\nNumber of artworks found: {len(resulting_artworks)}")
+print(f"Source: {PATH_TO_DB}\n")
 
-# Print header row ONCE at the top
-print("\nChronologically Ordered List of Artworks Installed on CCSF Ocean Campus\n")
-print("Creation Date -- Title -- Artist -- Location")
-print("-" * 80)
+print(f"Chronologically Ordered List of {len(resulting_artworks)} Artworks at CCSF Ocean Campus\n")
+print(f"{'Creation Date':<14} | {'Display Title':<42} | {'Artist':<28} | {'Location'}")
+print("-" * 140)
 
-for creation_date, title, artist, loc_desc in rows:
-    creation_date = creation_date if creation_date else "Unknown Date"
-    title         = title if title else "Untitled"
-    artist        = artist if artist else "Unknown Artist"
-    loc_desc      = loc_desc if loc_desc else "No location description"
+for creation_date, title, artist, loc_desc in resulting_artworks:
+    print(f"{creation_date or 'Unknown':<14} | "
+          f"{title or 'Untitled':<42} | "
+          f"{artist or 'Unknown Artist':<28} | "
+          f"{loc_desc or 'No description'}")
 
-    print(f"{creation_date} -- {title} -- {artist} -- {loc_desc}")
 print()
-conn.close()
