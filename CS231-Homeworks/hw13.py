@@ -11,10 +11,15 @@ with sqlite3.connect(PATH_TO_DB) as my_conn:
         FROM art
         WHERE LOWER(facility) LIKE '%ccsf%ocean campus%'
            OR LOWER(street_address_or_intersection) LIKE '%50%frida kahlo%'
+
+        -- Sort numerically when creation_date begins with digits.
+        -- GLOB '[0-9]*' checks whether the field *starts with a number*,
+        -- If the date is numeric, convert it to integer for proper chronological sorting.
+        -- If not numeric, push it to the bottom by assigning the value 9999.
         ORDER BY CASE
                     WHEN creation_date GLOB '[0-9]*'
                         THEN CAST(creation_date AS INTEGER)
-                    ELSE 9999
+                    ELSE 9999     -- push non-numeric or missing dates to the end
                  END ASC;
     """)
     resulting_artworks = my_cursor.fetchall()
