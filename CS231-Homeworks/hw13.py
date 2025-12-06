@@ -4,6 +4,10 @@ import sqlite3
 
 PATH_TO_DB = "/users/abrick/resources/art.db"
 
+# Sort numerically when creation_date begins with digits.
+# GLOB '[0-9]*' checks whether the field *starts with a number*,
+# If the date is numeric, convert it to integer for proper chronological sorting.
+# If not numeric, push it to the bottom by assigning the value 9999.'''
 with sqlite3.connect(PATH_TO_DB) as my_conn:
     my_cursor = my_conn.cursor()
     my_cursor.execute("""
@@ -11,11 +15,6 @@ with sqlite3.connect(PATH_TO_DB) as my_conn:
         FROM art
         WHERE LOWER(facility) LIKE '%ccsf%ocean campus%'
            OR LOWER(street_address_or_intersection) LIKE '%50%frida kahlo%'
-
-        -- Sort numerically when creation_date begins with digits.
-        -- GLOB '[0-9]*' checks whether the field *starts with a number*,
-        -- If the date is numeric, convert it to integer for proper chronological sorting.
-        -- If not numeric, push it to the bottom by assigning the value 9999.
         ORDER BY CASE
                     WHEN creation_date GLOB '[0-9]*'
                         THEN CAST(creation_date AS INTEGER)
@@ -26,15 +25,11 @@ with sqlite3.connect(PATH_TO_DB) as my_conn:
 
 print(f"\nNumber of artworks found: {len(resulting_artworks)}")
 print(f"Source: {PATH_TO_DB}\n")
-
 print(f"Chronologically Ordered List of {len(resulting_artworks)} Artworks at CCSF Ocean Campus\n")
-print(f"{'Creation Date':<14} | {'Display Title':<42} | {'Artist':<28} | {'Location'}")
-print("-" * 140)
-
-for creation_date, title, artist, loc_desc in resulting_artworks:
-    print(f"{creation_date or 'Unknown':<14} | "
-          f"{title or 'Untitled':<42} | "
-          f"{artist or 'Unknown Artist':<28} | "
-          f"{loc_desc or 'No description'}")
-
-print()
+for i, (creation_date, title, artist, loc_desc) in enumerate(resulting_artworks, start=1):
+    print(f"{i}.")
+    print(f"   Creation Date:      {creation_date or 'Unknown'}")
+    print(f"   Display Title:      {title or 'Untitled'}")
+    print(f"   Artist:             {artist or 'Unknown Artist'}")
+    print(f"   Location:           {loc_desc or 'No description'}")
+    print()  # blank line between items
