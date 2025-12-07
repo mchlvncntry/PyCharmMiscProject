@@ -7,13 +7,14 @@ PATH_TO_DB = "/users/abrick/resources/art.db"
 # Sort numerically when creation_date begins with digits.
 # GLOB '[0-9]*' checks whether the field *starts with a number*,
 # If the date is numeric, convert it to integer for proper chronological sorting.
-# If not numeric, push it to the bottom by assigning the value 9999.'''
+# If not numeric, push it to the bottom by assigning the value 9999.
 with sqlite3.connect(PATH_TO_DB) as my_conn:
     my_cursor = my_conn.cursor()
     my_cursor.execute("""
         SELECT creation_date, display_title, artist, location_description
         FROM art
-        WHERE LOWER(facility) LIKE '%ccsf%ocean campus%'
+        WHERE LOWER(facility) LIKE '%ccsf%
+           AND LOWER(facility) LIKE %ocean%'
            OR LOWER(street_address_or_intersection) LIKE '%50%frida kahlo%'
         ORDER BY CASE
                     WHEN creation_date GLOB '[0-9]*'
